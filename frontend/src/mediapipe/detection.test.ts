@@ -1,6 +1,13 @@
 import type { FaceLandmarkerResult } from '@mediapipe/tasks-vision'
 import { describe, expect, it } from 'vitest'
-import { buildMeasureRequest, extractDetection, landmarkBBox, toColumnMajor, toPixel } from './detection'
+import {
+  buildMeasureRequest,
+  extractDetection,
+  landmarkBBox,
+  landmarksPlausible,
+  toColumnMajor,
+  toPixel,
+} from './detection'
 
 // Rotation about z by 90° with translation (1, 2, -50).
 const ROW_MAJOR = [0, -1, 0, 1, 1, 0, 0, 2, 0, 0, 1, -50, 0, 0, 0, 1]
@@ -78,5 +85,23 @@ describe('request building and pixel helpers', () => {
       width: 20,
       height: 80,
     })
+  })
+})
+
+describe('landmarksPlausible', () => {
+  const withPoint = (x: number, y: number) => {
+    const r = fakeResult(1)
+    r.faceLandmarks[0] = [...r.faceLandmarks[0].slice(1), { x, y, z: 0, visibility: 0 }]
+    return r
+  }
+  it('accepts faces inside or slightly outside the image', () => {
+    expect(landmarksPlausible(fakeResult(2))).toBe(true)
+    expect(landmarksPlausible(withPoint(-0.1, 1.05))).toBe(true)
+    expect(landmarksPlausible(fakeResult(0))).toBe(true)
+  })
+  it('rejects far-off or non-finite landmarks (broken GPU delegate)', () => {
+    expect(landmarksPlausible(withPoint(-698.7, 0.5))).toBe(false)
+    expect(landmarksPlausible(withPoint(0.5, 1e36))).toBe(false)
+    expect(landmarksPlausible(withPoint(NaN, 0.5))).toBe(false)
   })
 })

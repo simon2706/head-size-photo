@@ -42,6 +42,21 @@ export function toColumnMajor(m: Pick<Matrix, 'rows' | 'columns' | 'data'>): num
   return d
 }
 
+/** How far outside the image (in image widths/heights) a landmark may plausibly lie. */
+const MAX_LANDMARK_OVERHANG = 1
+
+/**
+ * False when any face has non-finite landmarks or landmarks far outside the image. Some mobile
+ * GPUs (e.g. Adreno 830 in Chrome) make the GPU delegate return such garbage instead of failing.
+ */
+export function landmarksPlausible(result: Pick<FaceLandmarkerResult, 'faceLandmarks'>): boolean {
+  const lo = -MAX_LANDMARK_OVERHANG
+  const hi = 1 + MAX_LANDMARK_OVERHANG
+  return (result.faceLandmarks ?? []).every((face) =>
+    face.every(({ x, y }) => Number.isFinite(x) && Number.isFinite(y) && x >= lo && x <= hi && y >= lo && y <= hi),
+  )
+}
+
 export function extractDetection(
   result: FaceLandmarkerResult,
   imageWidth: number,

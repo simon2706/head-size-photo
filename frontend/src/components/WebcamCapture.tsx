@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { measure } from '../api/client'
 import { buildMeasureRequest, extractDetection, type FaceDetection } from '../mediapipe/detection'
-import { getFaceLandmarker } from '../mediapipe/faceLandmarker'
+import { detectFaces } from '../mediapipe/faceLandmarker'
 import { detectIrisSafe } from '../mediapipe/irisLandmark'
 import type { MeasureResponse, MeasurementConfig } from '../types/api'
 import { Overlay } from '../visualization/Overlay'
@@ -48,10 +48,12 @@ export function WebcamCapture({ config, onCapture, onClose }: Props) {
       if (stopped || !video) return
       if (video.readyState >= 2 && video.videoWidth > 0) try {
         setDisplayWidth(video.clientWidth)
-        const lm = await getFaceLandmarker('VIDEO')
-        const ts = Math.max(performance.now(), lastTs + 1)
-        lastTs = ts
-        const det = extractDetection(lm.detectForVideo(video, ts), video.videoWidth, video.videoHeight)
+        const result = await detectFaces('VIDEO', (lm) => {
+          const ts = Math.max(performance.now(), lastTs + 1)
+          lastTs = ts
+          return lm.detectForVideo(video, ts)
+        })
+        const det = extractDetection(result, video.videoWidth, video.videoHeight)
         setDetection(det)
         if (!det) setLive(null)
         const now = performance.now()
@@ -67,6 +69,7 @@ export function WebcamCapture({ config, onCapture, onClose }: Props) {
         }
       } catch (e) {
         console.error('[webcam] detection failed', e)
+        setDetection(null) // don't leave stale landmarks on screen
       }
       raf = requestAnimationFrame(loop)
     }

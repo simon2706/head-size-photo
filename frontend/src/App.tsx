@@ -8,7 +8,7 @@ import { QualityPanel } from './components/QualityPanel'
 import { WebcamCapture } from './components/WebcamCapture'
 import { buildExport, downloadJson, exportFileName, type CaptureSource } from './export/exportJson'
 import { buildMeasureRequest, extractDetection, landmarkBBox, type FaceDetection } from './mediapipe/detection'
-import { getFaceLandmarker, MODEL_DESCRIPTION } from './mediapipe/faceLandmarker'
+import { detectFaces, getFaceLandmarker, MODEL_DESCRIPTION } from './mediapipe/faceLandmarker'
 import { detectIrisSafe, getIrisModel } from './mediapipe/irisLandmark'
 import { faceSharpness } from './mediapipe/sharpness'
 import type { ImageMetrics, MeasureResponse, MeasurementConfig } from './types/api'
@@ -148,8 +148,8 @@ export default function App() {
       return { url, width: canvas.width, height: canvas.height, source }
     })
     try {
-      const lm = await getFaceLandmarker('IMAGE')
-      const face = extractDetection(lm.detect(canvas), canvas.width, canvas.height)
+      const result = await detectFaces('IMAGE', (lm) => lm.detect(canvas))
+      const face = extractDetection(result, canvas.width, canvas.height)
       if (!face) {
         setError('No face detected. Use a well-lit frontal photo with the whole face visible.')
         setBusy(null)
