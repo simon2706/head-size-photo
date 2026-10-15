@@ -134,13 +134,16 @@ export function WebcamCapture({ config, onCapture, onClose }: Props) {
           ))}
         </ul>
         <div className="webcam-actions">
-          <button className="primary" onClick={capture} disabled={!detection}>
-            {aligned ? 'Capture' : 'Capture anyway'}
+          {/* On phones CSS turns this into a round shutter; the text stays as its accessible name. */}
+          <button className={`primary shutter${aligned ? ' aligned' : ''}`} onClick={capture} disabled={!detection}>
+            <span>{aligned ? 'Capture' : 'Capture anyway'}</span>
           </button>
-          <button onClick={onClose}>Close camera</button>
+          <button className="close-camera" onClick={onClose}>
+            Close camera
+          </button>
         </div>
       </div>
-      <p className="muted small">
+      <p className="muted small mirror-note">
         Preview is mirrored like a mirror; the captured photo and all landmark coordinates are not.
       </p>
     </div>

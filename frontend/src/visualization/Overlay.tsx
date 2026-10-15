@@ -4,6 +4,7 @@ import { toPixel } from '../mediapipe/detection'
 import type { IrisModelResult } from '../mediapipe/irisLandmark'
 import type { LandmarkPoint, MeasureResponse } from '../types/api'
 import { formatValue, type Unit } from './format'
+import { isCompactOverlay } from './layout'
 import { placeLabels } from './labels'
 import { LAYER_COLORS, TYPE_STYLE } from './style'
 import type { OverlayToggles } from './toggles'
@@ -80,6 +81,7 @@ export function Overlay({
   const measurements = result?.measurements.filter((m) => m.endpoints_px.length === 2) ?? []
   const selected = measurements.find((m) => m.id === selectedId) ?? null
   const fontSize = 12 * k
+  const compact = isCompactOverlay(displayWidth)
   const xs = measurements.flatMap((m) => m.endpoints_px.map((p) => p[0]))
   const faceRight = Math.max(...xs, vx)
   const faceLeft = Math.min(...xs, vx + vw)
@@ -87,16 +89,18 @@ export function Overlay({
   const approxLabelWidth = 22 * fontSize
   const roomRight = vx + vw - faceRight
   const labelsOnRight = roomRight >= 24 * k + approxLabelWidth || roomRight >= faceLeft - vx
-  const labels = placeLabels(
-    measurements.map((m) => ({
-      id: m.id,
-      anchor: m.endpoints_px.reduce((a, b) =>
-        labelsOnRight ? (b[0] > a[0] ? b : a) : b[0] < a[0] ? b : a,
-      ) as [number, number],
-    })),
-    labelsOnRight ? faceRight + 24 * k : faceLeft - 24 * k,
-    fontSize * 1.35,
-  )
+  const labels = compact
+    ? []
+    : placeLabels(
+        measurements.map((m) => ({
+          id: m.id,
+          anchor: m.endpoints_px.reduce((a, b) =>
+            labelsOnRight ? (b[0] > a[0] ? b : a) : b[0] < a[0] ? b : a,
+          ) as [number, number],
+        })),
+        labelsOnRight ? faceRight + 24 * k : faceLeft - 24 * k,
+        fontSize * 1.35,
+      )
   const leaderGap = (labelsOnRight ? 1 : -1) * 4 * k
   const byId = new Map(measurements.map((m) => [m.id, m]))
 
@@ -126,7 +130,7 @@ export function Overlay({
       className={imageUrl ? 'photo-svg' : 'overlay'}
       viewBox={`${vx} ${vy} ${vw} ${vh}`}
       preserveAspectRatio="xMidYMid meet"
-      style={imageUrl ? { aspectRatio: `${vw} / ${vh}`, width: `min(100%, calc((100vh - 150px) * ${vw / vh}))` } : undefined}
+      style={imageUrl ? { aspectRatio: `${vw} / ${vh}`, width: `min(100%, calc((100dvh - 150px) * ${vw / vh}))` } : undefined}
       onClick={() => onSelect?.(null)}
     >
       {imageUrl && <image href={imageUrl} x={0} y={0} width={width} height={height} />}
@@ -232,6 +236,21 @@ export function Overlay({
             </g>
           )
         })}
+
+      {toggles.measurements && compact && selected && (
+        <text
+          x={(selected.endpoints_px[0][0] + selected.endpoints_px[1][0]) / 2}
+          y={Math.min(selected.endpoints_px[0][1], selected.endpoints_px[1][1]) - 8 * k}
+          fontSize={14 * k}
+          fill={TYPE_STYLE[selected.type].color}
+          textAnchor="middle"
+          fontWeight={700}
+          className="label"
+          pointerEvents="none"
+        >
+          {formatValue(selected, unit)}
+        </text>
+      )}
 
       {idSet.size > 0 &&
         [...idSet].map((id) =>

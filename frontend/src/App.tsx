@@ -13,6 +13,7 @@ import { detectIrisSafe, getIrisModel } from './mediapipe/irisLandmark'
 import { faceSharpness } from './mediapipe/sharpness'
 import type { ImageMetrics, MeasureResponse, MeasurementConfig } from './types/api'
 import type { Unit } from './visualization/format'
+import { isCompactOverlay } from './visualization/layout'
 import { Overlay } from './visualization/Overlay'
 import { DEFAULT_TOGGLES, type OverlayToggles } from './visualization/toggles'
 
@@ -32,6 +33,20 @@ const TOGGLE_LABELS: [keyof OverlayToggles, string][] = [
   ['measurements', 'Measurements'],
   ['ids', 'Landmark IDs'],
 ]
+
+/** Phones (portrait) and other narrow screens; mirrors the breakpoint in index.css. */
+const MOBILE_QUERY = '(max-width: 700px)'
+
+function useMediaQuery(query: string): boolean {
+  const [matches, setMatches] = useState(() => window.matchMedia(query).matches)
+  useEffect(() => {
+    const mql = window.matchMedia(query)
+    const onChange = () => setMatches(mql.matches)
+    mql.addEventListener('change', onChange)
+    return () => mql.removeEventListener('change', onChange)
+  }, [query])
+  return matches
+}
 
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -66,6 +81,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [zoomToFace, setZoomToFace] = useState(true)
   const [displayWidth, setDisplayWidth] = useState(800)
+  const isMobile = useMediaQuery(MOBILE_QUERY)
   const stageRef = useRef<HTMLDivElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const configRef = useRef(config)
@@ -202,7 +218,7 @@ export default function App() {
                 selectedId={selectedId}
                 onSelect={setSelectedId}
                 imageUrl={capture.url}
-                viewBox={zoomToFace && detection ? faceViewBox(detection) : undefined}
+                viewBox={zoomToFace && detection ? faceViewBox(detection, isCompactOverlay(displayWidth)) : undefined}
               />
             </div>
           ) : (
@@ -248,22 +264,26 @@ export default function App() {
           Upload image
         </button>
         <button onClick={() => setCamera((c) => !c)}>{camera ? 'Close camera' : 'Take photo'}</button>
-        <div className="toggles">
-          {TOGGLE_LABELS.map(([key, label]) => (
-            <label key={key}>
-              <input
-                type="checkbox"
-                checked={toggles[key]}
-                onChange={(e) => setToggles({ ...toggles, [key]: e.target.checked })}
-              />
-              {label}
+        {/* Inline on desktop; a collapsible panel on phones (summary hidden by CSS on desktop). */}
+        <details className="view-options" open={!isMobile} key={isMobile ? 'mobile' : 'desktop'}>
+          <summary>Overlay layers</summary>
+          <div className="toggles">
+            {TOGGLE_LABELS.map(([key, label]) => (
+              <label key={key}>
+                <input
+                  type="checkbox"
+                  checked={toggles[key]}
+                  onChange={(e) => setToggles({ ...toggles, [key]: e.target.checked })}
+                />
+                {label}
+              </label>
+            ))}
+            <label className="zoom-toggle">
+              <input type="checkbox" checked={zoomToFace} onChange={(e) => setZoomToFace(e.target.checked)} />
+              Zoom to face
             </label>
-          ))}
-        </div>
-        <label className="zoom-toggle">
-          <input type="checkbox" checked={zoomToFace} onChange={(e) => setZoomToFace(e.target.checked)} />
-          Zoom to face
-        </label>
+          </div>
+        </details>
         <button onClick={onExport} disabled={!result}>
           Export JSON
         </button>
@@ -272,14 +292,17 @@ export default function App() {
   )
 }
 
-/** Face bounding box padded for context, widened on the right for the label column. */
-function faceViewBox(det: FaceDetection): [number, number, number, number] {
+/**
+ * Face bounding box padded for context, widened on the right for the label column. Compact
+ * overlays (phones) draw no label column, so the face gets the full width.
+ */
+function faceViewBox(det: FaceDetection, compact: boolean): [number, number, number, number] {
   const bb = landmarkBBox(det.landmarks, det.imageWidth, det.imageHeight)
   const padX = 0.2 * bb.width
   const padY = 0.15 * bb.height
   const left = bb.x - padX
   const contentW = bb.width + 2 * padX
-  const w = contentW / 0.68 // ~32 % of the width reserved for labels
+  const w = compact ? contentW : contentW / 0.68 // ~32 % of the width reserved for labels
   return [left, bb.y - padY, w, bb.height + 2 * padY]
 }
 
