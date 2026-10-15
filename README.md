@@ -110,6 +110,7 @@ frontend/                        React + TypeScript + Vite
   scripts/setup-assets.mjs       copies MediaPipe and LiteRT.js WASM into public/ on npm install
 scripts/
   dev.sh                         start backend + frontend
+  dev-mobile.sh                  same, served over HTTPS on the LAN for phone testing
   fetch-model.sh                 re-download the Face Landmarker and Iris landmark models
 ```
 
@@ -155,6 +156,41 @@ npm run dev
 Then open <http://localhost:5173>. The Vite dev server proxies `/api` to `http://127.0.0.1:8000`;
 set `BACKEND_URL` to use another backend address. Interactive API docs are at
 <http://127.0.0.1:8000/docs>.
+
+### Test on a phone (same Wi-Fi)
+
+Phone browsers only allow camera access in a secure context, so plain
+`http://<mac-ip>:5173` cannot open the live camera. Run this instead:
+
+```bash
+./scripts/dev-mobile.sh
+```
+
+The script needs [mkcert](https://github.com/FiloSottile/mkcert)
+(`brew install mkcert && mkcert -install`). It:
+- issues a certificate for the Mac's Wi-Fi IP into `frontend/.certs/` (git-ignored);
+- serves Vite over HTTPS on all interfaces;
+- keeps the backend on `127.0.0.1`, because the phone only talks to Vite, which proxies `/api`;
+- prints the URL to open on the phone, for example `https://192.168.50.166:5173`.
+
+If `qrencode` is installed, it also prints a QR code. If macOS asks to allow incoming
+connections for `node`, allow it.
+
+You can get past the certificate warning on the phone in one of two ways:
+- **Trust the CA once (recommended).** Copy `$(mkcert -CAROOT)/rootCA.pem` to the phone. On
+  Samsung: *Settings → Security and privacy → More security settings → Install from device
+  storage → CA certificate*. Chrome and Samsung Internet then show a normal padlock.
+- **Skip the install.** Tap *Advanced → Proceed* on the warning page. The camera still works.
+
+Below 700 px wide (e.g. a Samsung S25 at 360 × 780 CSS px), the layout changes:
+- The panels stack under the photo.
+- The live camera goes full screen with a round shutter. The shutter turns green when you are
+  aligned.
+- The photo overlay drops the label column. Tap a line to see its value; the measurements list
+  holds the full readout.
+
+To debug on the device, connect it over USB with USB debugging enabled. Then open
+`chrome://inspect` in desktop Chrome to see the phone tab's console.
 
 ### Tests and checks
 

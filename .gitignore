@@ -28,3 +28,5 @@ frontend/dist/
 frontend/public/mediapipe/
 frontend/public/litert/
 *.tsbuildinfo
+# Local HTTPS certificates for phone testing (scripts/dev-mobile.sh)
+frontend/.certs/

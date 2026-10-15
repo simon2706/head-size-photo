@@ -37,7 +37,8 @@ npm run build        # tsc -b + vite build
 npm run lint         # oxlint
 ```
 
-To start both: `./scripts/dev.sh`. To re-download the models: `./scripts/fetch-model.sh`.
+To start both: `./scripts/dev.sh`. To test on a phone on the same Wi-Fi (HTTPS via mkcert, so the
+camera works): `./scripts/dev-mobile.sh`. To re-download the models: `./scripts/fetch-model.sh`.
 
 ## Architecture
 
